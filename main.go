@@ -1,44 +1,69 @@
 package main
 
 import (
-  "net/http"
-  "github.com/gorilla/mux"
+	"net/http"
+	"encoding/json"
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
+	"os"
 )
 
 type Product struct {
-  id int
-  name string
-  slug string
-  description string
+	Id int
+	Name string
+	Slug string
+	Description string
 }
 
 var productList = []Product {
-  Product{id: 0, name: "hover board", slug: "slug-one", description: "Some description"},
-  Product{id: 1, name: "Hover Shooters", slug: "hover-shooters", description : "Shoot your way to the top on 14 different hoverboards"},
-  Product{id: 2, name: "Ocean Explorer", slug: "ocean-explorer", description : "Explore the depths of the sea in this one of a kind underwater experience"},
-  Product{id: 3, name: "Dinosaur Park", slug : "dinosaur-park", description : "Go back 65 million years in the past and ride a T-Rex"},
-  Product{id: 4, name: "Cars VR", slug : "cars-vr", description: "Get behind the wheel of the fastest cars in the world."},
-  Product{id: 5, name: "Robin Hood", slug: "robin-hood", description : "Pick up the bow and arrow and master the art of archery"},
-  Product{id: 6, name: "Real World VR", slug: "real-world-vr", description : "Explore the seven wonders of the world in VR"},
+	{Id: 0, Name: "hover board", Slug: "slug-one", Description: "Some Description"},
+	{Id: 1, Name: "Hover Shooters", Slug: "hover-shooters", Description: "Shoot your way to the top on 14 different hoverboards"},
+	{Id: 2, Name: "Ocean Explorer", Slug: "ocean-explorer", Description: "Explore the depths of the sea in this one of a kind underwater experience"},
+	{Id: 3, Name: "Dinosaur Park", Slug: "dinosaur-park", Description: "Go back 65 million years in the past and rIde a T-Rex"},
+	{Id: 4, Name: "Cars VR", Slug: "cars-vr", Description: "Get behind the wheel of the fastest cars in the world."},
+	{Id: 5, Name: "Robin Hood", Slug: "robin-hood", Description: "Pick up the bow and arrow and master the art of archery"},
+	{Id: 6, Name: "Real World VR", Slug: "real-world-vr", Description: "Explore the seven wonders of the world in VR"},
 }
 
 func main() {
-  r := mux.NewRouter()
+	r := mux.NewRouter()
 
-  r.Handle("/", http.FileServer(http.Dir("./views/")))
-  r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
+	r.Handle("/", http.FileServer(http.Dir("./views/")))
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 
-  r.Handle("/status", StatusHandler).Methods("GET")
-  r.Handle("/products", NotImplemented).Methods("GET")
-  r.Handle("/products/{slug}/feedback", NotImplemented).Methods("POST")
+	r.Handle("/status", StatusHandler).Methods("GET")
+	r.Handle("/products", ProductsHandler).Methods("GET")
+	r.Handle("/products/{Slug}/feedback", AddFeedbackHandler).Methods("POST")
 
-  http.ListenAndServe(":3000", r)
+	http.ListenAndServe(":3000", handlers.LoggingHandler(os.Stdout, r))
 }
 
-var NotImplemented = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
-  w.Write([]byte("Not Implemented"))
+var StatusHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
+	w.Write([]byte("API is up and running"))
 })
 
-var StatusHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
-  w.Write([]byte("API is up and running"))
+var ProductsHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	payload, _ := json.Marshal(productList)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(payload))
+})
+
+var AddFeedbackHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	var product Product
+	vars := mux.Vars(r)
+	slug := vars["slug"]
+
+	for _, p := range productList {
+		if p.Slug == slug {
+			product = p
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if product.Slug != "" {
+		payload, _ := json.Marshal(product)
+		w.Write([]byte(payload))
+	} else {
+		w.Write([]byte("Product Not Found"))
+	}
 })
