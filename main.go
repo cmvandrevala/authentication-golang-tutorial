@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/dgrijalva/jwt-go"
 	"os"
+	jwtmiddleware "github.com/auth0/go-jwt-middleware"
+	"time"
 )
 
 type Product struct {
@@ -14,6 +17,8 @@ type Product struct {
 	Slug string
 	Description string
 }
+
+var mySigningKey = []byte("a super secret phrase")
 
 var productList = []Product {
 	{Id: 0, Name: "hover board", Slug: "slug-one", Description: "Some Description"},
@@ -25,6 +30,16 @@ var productList = []Product {
 	{Id: 6, Name: "Real World VR", Slug: "real-world-vr", Description: "Explore the seven wonders of the world in VR"},
 }
 
+var GetTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	token := jwt.New(jwt.SigningMethodHS256)
+	claims := token.Claims.(jwt.MapClaims)
+	claims["admin"] = true
+	claims["name"] = "Bob Bobberson"
+	claims["exp"] = time.Now().Add(time.Minute*2).Unix()
+	tokenString, _ := token.SignedString(mySigningKey)
+	w.Write([]byte(tokenString))
+})
+
 func main() {
 	r := mux.NewRouter()
 
@@ -32,14 +47,22 @@ func main() {
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 
 	r.Handle("/status", StatusHandler).Methods("GET")
-	r.Handle("/products", ProductsHandler).Methods("GET")
-	r.Handle("/products/{Slug}/feedback", AddFeedbackHandler).Methods("POST")
+	r.Handle("/products", jwtMiddleware.Handler(ProductsHandler)).Methods("GET")
+	r.Handle("/products/{Slug}/feedback", jwtMiddleware.Handler(AddFeedbackHandler)).Methods("POST")
+	r.Handle("/get_token", GetTokenHandler).Methods("GET")
 
 	http.ListenAndServe(":3000", handlers.LoggingHandler(os.Stdout, r))
 }
 
 var StatusHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 	w.Write([]byte("API is up and running"))
+})
+
+var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
+	ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
+		return mySigningKey, nil
+	},
+	SigningMethod: jwt.SigningMethodHS256,
 })
 
 var ProductsHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
