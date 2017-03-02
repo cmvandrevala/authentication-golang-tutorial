@@ -22,6 +22,8 @@ where ```<name of image>``` is the name that you want to give the Docker image f
 docker run -d -p 3000:3000 <name of image>
 ```
 
+You can then navigate to ```localhost:3000``` in your browser to view the landing page of this app.
+
 In order to stop the Docker container, run ```docker ps``` to get a list of the current running containers. Find the container with an IMAGE of ```<name of image>```, retrieve its Container ID, and then run:
 
 ```
