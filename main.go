@@ -42,21 +42,12 @@ var GetTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reque
 
 func main() {
 	r := mux.NewRouter()
-
-	r.Handle("/", http.FileServer(http.Dir("./views/")))
+	r.Handle("/", http.FileServer(http.Dir("./views")))
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
-
-	r.Handle("/status", StatusHandler).Methods("GET")
 	r.Handle("/products", jwtMiddleware.Handler(ProductsHandler)).Methods("GET")
-	r.Handle("/products/{Slug}/feedback", jwtMiddleware.Handler(AddFeedbackHandler)).Methods("POST")
 	r.Handle("/get_token", GetTokenHandler).Methods("GET")
-
 	http.ListenAndServe(":3000", handlers.LoggingHandler(os.Stdout, r))
 }
-
-var StatusHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
-	w.Write([]byte("API is up and running"))
-})
 
 var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
 	ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
@@ -69,24 +60,4 @@ var ProductsHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reque
 	payload, _ := json.Marshal(productList)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(payload))
-})
-
-var AddFeedbackHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	var product Product
-	vars := mux.Vars(r)
-	slug := vars["slug"]
-
-	for _, p := range productList {
-		if p.Slug == slug {
-			product = p
-		}
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if product.Slug != "" {
-		payload, _ := json.Marshal(product)
-		w.Write([]byte(payload))
-	} else {
-		w.Write([]byte("Product Not Found"))
-	}
 })
